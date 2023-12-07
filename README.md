@@ -11,9 +11,9 @@
 ## Table Of Content
 
 - [Project Overview](#project-overview)
-    - [Architecture](#architecture)
-    - [DDev or Colima](#ddev)
-    - [TER](#ter-extension)
+    - [Project Architecture](#project-architecture)
+    - [Task 1](#task-1)
+    - [Task 2](#task-2)
 - [TYPO3 setup](#typo3-setup)
     - [Database setup](#database-setup)
     - [Security](#security)
@@ -33,14 +33,18 @@ the project is divided into two tasks, the first consists of deploying the Prest
 - Task 1 : Deploy application on the same network adress
 - Task 2 : Communicate the front side and server side with different network adresses 
 
-### Architecture
+### Project Architecture
 
-![Architecture diagram](archi.png)
+![architeture diagram](https://github.com/stdynv/Docker-Prestashop/assets/78117993/5d48aaed-5194-45c8-a33a-9a5e7f925d59)
 
-
+### Task 1 
+Deploy this application inside a network. Make sure the two containers can communicate with each other using their names.
 **Note:** composer 2.1+ is required!
-
-The latest TYPO3 version can be installed via composer. This is especially useful, if you want to create new TYPO3 installations automatically or play with the latest code. You need to install the composer package first, if it isn't already available:
+### Task 2
+create two networks with the cidr specified in the schemas. Please make use of `--subnet` for adding a subnet to the network when creating it. The name of the networks are `ynov-frontend-network` for the frontend website container and `ynov-backend-network` for the database container.
+*in order for the two containers to talk to each other* :
+- make use of a third container that can be called `gateway` or `router` and connect this container to the two above networks.
+- Inside the router gateway, configure the route table by using ip below command
 
 ```bash
 php -r "readfile('https://getcomposer.org/installer');" | php -- --filename=composer
