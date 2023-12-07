@@ -14,7 +14,7 @@
     - [Project Architecture](#project-architecture)
     - [Task 1](#task-1)
     - [Task 2](#task-2)
-- [TYPO3 setup](#typo3-setup)
+- [Project setup](#typo3-setup)
     - [Database setup](#database-setup)
     - [Security](#security)
 - [Page setup](#page-setup)
@@ -39,134 +39,43 @@ the project is divided into two tasks, the first consists of deploying the Prest
 
 ### Task 1 
 Deploy this application inside a network. Make sure the two containers can communicate with each other using their names.
-**Note:** composer 2.1+ is required!
+
 ### Task 2
 create two networks with the cidr specified in the schemas. Please make use of `--subnet` for adding a subnet to the network when creating it. The name of the networks are `ynov-frontend-network` for the frontend website container and `ynov-backend-network` for the database container.
 *in order for the two containers to talk to each other* :
 - make use of a third container that can be called `gateway` or `router` and connect this container to the two above networks.
 - Inside the router gateway, configure the route table by using ip below command
 
-```bash
-php -r "readfile('https://getcomposer.org/installer');" | php -- --filename=composer
+**Note**: The goal for the second task is not to deploy the application but to make sure the containers can talk to each other using their ips.
+
+## Project Setup
+
+### Introduction
+The prestashop image available [Prestashop image avaible here](https://hub.docker.com/r/bitnami/prestashop) can be used to deploy an e-commerce application. This application make use of two components. a fronten website and a database for storing persistante data.
+
+
+```docker
+docker pull bitnami/prestashop:latest
 ```
 
-To install the TYPO3 base distribution first, execute this command:
+### Task1 Setup
 
-```bash
-composer create-project typo3/cms-base-distribution myshop
-# or install a specific TYPO3 version:
-composer create-project "typo3/cms-base-distribution:^12" myshop
+**Step 1: Create a docker network for the application**
+
+```docker
+docker network create ynov-network
 ```
-
-It will install TYPO3 into the `./myshop/` directory. Change into the directory and install TYPO3 as usual:
-
-```bash
-cd ./myshop
-touch public/FIRST_INSTALL
+**Step 2:  Create a volume for MariaDB and create a MariaDB container**
+- Create MariaDB volume
+```docker
+docker volume create --name mariadb_data
 ```
-
-Open the TYPO3 URL in your browser and follow the setup steps. Afterwards, install the Aimeos extension using:
-
-```bash
-composer req -W aimeos/aimeos-typo3:~23.7
-```
-
-If composer complains that one or more packages can't be installed because the required minimum stability isn't met, add this to your `composer.json`:
-
-```json
-"minimum-stability": "dev",
-"prefer-stable": true,
-```
-
-If you want a more or less working installation out of the box for new installations, you can install the Bootstrap package too:
-
-```bash
-composer req bk2k/bootstrap-package
-```
-
-***Note***: Remember to create a root page and a root template, which includes the Bootstrap package templates! (See also below.)
-
-Finally, depending on your TYPO3 version, run the following commands from your installation directory:
-
-**For TYPO3 11+:**
-
-```bash
-php ./vendor/bin/typo3 extension:setup
-php ./vendor/bin/typo3 aimeos:setup --option=setup/default/demo:1
-```
-
-If you don't want to add the Aimeos demo data, you should remove `--option=setup/default/demo:1` from the Aimeos setup command.
-
-**For TYPO3 10:**
-
-```bash
-php ./vendor/bin/typo3 extension:activate scheduler
-php ./vendor/bin/typo3 extension:activate aimeos
-```
-
-If you experience any errors with the database, please check the [Database Setup](#database-setup) section below.
-
-Please keep on reading below the "TER Extension" installation section!
-
-### DDev
-
-*Note:* Installation instructions for TYPO3 with `ddev` or `Colima` can be found here:
-[TYPO3 with ddev or colima](https://ddev.readthedocs.io/en/latest/users/quickstart/)
-
-### TER Extension
-
-If you want to install Aimeos into a traditionally installed TYPO3 ("legacy installation"), the [Aimeos extension from the TER](https://typo3.org/extensions/repository/view/aimeos) is recommended. You can download and install it directly from the Extension Manager of your TYPO3 instance.
-
-* Log into the TYPO3 backend
-* Click on "Admin Tools::Extensions" in the left navigation
-* Click the icon with the little plus sign left from the Aimeos list entry
-
-![Install Aimeos TYPO3 extension](https://user-images.githubusercontent.com/213803/211545083-d0820b63-26f2-453e-877f-ecd5ec128713.jpg)
-
-Afterwards, you have to execute the update script of the extension to create the required database structure:
-
-* Click on "Admin Tools::Upgrade"
-* Click "Run Upgrade Wizard" in the "Upgrade Wizard" tile
-* Click "Execute"
-
-![Execute update script](https://user-images.githubusercontent.com/213803/211545122-8fd94abd-78b2-47ad-ad3c-1ef1b9c052b4.jpg)
-
-#### Aimeos Distribution
-
-For new TYPO3 installations, there is a 1-click [Aimeos distribution](https://typo3.org/extensions/repository/view/aimeos_dist) available, too. Choose the Aimeos distribution from the list of available distributions in the Extension Manager and you will get a completely set up shop system including demo data for a quick start.
-
-## TYPO3 Setup
-
-Setup TYPO3 by creating a `FIRST_INSTALL` file in the `./public` directory:
-
-```bash
-touch public/FIRST_INSTALL
-```
-
-Open the URL of your installation in the browser and follow the steps in the TYPO3 setup scripts.
-
-### Database Setup
-
-If you use MySQL < 5.7.8, you have to use `utf8` and `utf8_unicode_ci` instead because those MySQL versions can't handle the long indexes created by `utf8mb4` (up to four bytes per character) and you will get errors like
-
-```
-1071 Specified key was too long; max key length is 767 bytes
-```
-
-To avoid that, change your database settings in your `./typo3conf/LocalConfiguration.php` to:
-
-```php
-    'DB' => [
-        'Connections' => [
-            'Default' => [
-                'tableoptions' => [
-                    'charset' => 'utf8',
-                    'collate' => 'utf8_unicode_ci',
-                ],
-                // ...
-            ],
-        ],
-    ],
+- Create a MariaDB container
+```docker
+docker run -d --name mariadb --network ynov-network \
+-e MYSQL_ROOT_PASSWORD=0000 -e MYSQL_DATABASE=prestashop_db \
+-e MYSQL_USER=prestashop_user -e MYSQL_PASSWORD=0000 \
+-v mariadb_data:/var/lib/mysql mariadb
 ```
 
 ### Security
