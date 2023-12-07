@@ -106,3 +106,110 @@ apt-get update
   ```
 
 ### Task2 setup
+**step1: Create two network adresses** 
+- front end nework
+```bash
+docker network create --subnet=10.0.0.0/24 ynov_front_network
+```
+- backend network
+```bash
+docker network create --subnet=10.0.0.0/24 ynov_back_network
+```
+**Step2 : Create new containers**
+- Server side container
+```docker
+docker run -d --name mariadb_container \
+--network ynov_back_network \
+--ip 10.0.1.2 \
+-e MYSQL_ROOT_PASSWORD=1234 \
+-e MYSQL_DATABASE= prestashop_db \
+-e MYSQL_USER=prestashop_user \
+-e MYSQL_PASSWORD=1234 \
+-v mariadb2:/var/lib/mysql \
+mariadb:latest
+```
+- front end container
+```docker
+docker run -d --name prestashop_container \
+--network front_network \
+--ip 10.0.0.2 \
+-e DB_SERVER=10.0.1.2 \
+-e DB_NAME=prestashop_db \
+-e DB_USER=prestashop_user \
+-e DB_PASSWD=1234 \
+-v prestashop2:/var/www/html \
+prestashop/prestashop:latest
+```
+- Router : to communicate with the two contianers
+
+```
+docker run -d --name routeur \
+--network ynov_front_network \
+--network ynov_back_network \
+--ip 10.0.0.2\
+--ip 10.0.1.2\
+-p 80:80 \
+nginx:latest
+```
+**Step3 : Router Configuration**
+- configurer les interface réseau des conteneurs
+```
+docker network disconnect ynov_front_network prestashop_container
+docker network connect --ip 10.0.0.2 ynov_front_network prestashop_container
+docker network disconnect ynov_back_network mariadb_container
+docker network connect --ip 10.0.2.1 ynov_back_network mariadb_container
+```
+
+**Step4 : Activate IP routage**
+- create file on ```/etc/sysctl.conf``` :
+```
+echo "net.ipv4.ip_forward=1" > /etc/sysctl.conf
+```
+- configure le routage sur le routeur
+```
+apt-get update
+apt-get install -y procps
+sysctl -p
+sysctl -w net.ipv4.ip_forward=1
+```
+
+**Step5 : join to networks**
+```
+docker exec routeur ip route add 10.0.0.2 via 10.0.1.1
+```
+```
+docker exec routeur ip route add 10.0.1.2 via 10.0.1.1
+```
+- runeach command separately :
+  ```
+  docker run --privileged -it routeur sh
+  docker exec -it routeur apt-get update
+  docker exec -it routeur apt-get install -y iproute2
+  docker exec -it routeur which ip
+  ```
+**Step6 : Vérifiy passerel**
+```
+docker exec -it prestashop_container ip route
+```
+```
+docker exec -it mariadb_container ip route
+```
+- Verify network config on router
+```
+docker exec routeur ip route
+```
+
+**FinalStep : check communication between the two containers**
+- install traceroute package
+  ```
+  docker exec prestashop_container apt-get update
+  docker exec prestashop_container apt-get install -y traceroute
+  ```
+- run traceroute command on each of network adresses :
+
+```
+docker exec -it prestashop_container traceroute 10.0.1.2
+```
+```
+docker exec -it mariadb_container ping 10.0.0.2
+```
